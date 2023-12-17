@@ -14,8 +14,6 @@ python3 -m venv venv
 # conf for docker environment
 1.modify variables on docker-compose.yml then run 
   docker-compose up
- 
-Happy debugging :)
 
 # important
 for those who don't like to deal with alembic you can add this line to 
