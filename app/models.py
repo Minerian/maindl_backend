@@ -21,7 +21,7 @@ class Post(Base):
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
     user_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), nullable=False)
+        "users.id"), nullable=False) #, ondelete="CASCADE"
     category = Column(String, nullable=True)
     group_id = Column(Integer, nullable = True)
     owner = relationship("User")
@@ -38,7 +38,7 @@ class User(Base):
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
     group_id = Column(Integer,ForeignKey(
-        "groups.id", ondelete="CASCADE"), nullable=True)
+        "groups.id"), nullable=True) #, ondelete="CASCADE"
     owner = relationship("Group")
     
 class Group(Base):

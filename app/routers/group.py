@@ -111,3 +111,24 @@ def get_group_all(db: Session = Depends(get_db), current_user: int =Depends(oaut
                             detail="No groups for now")
 
     return group
+
+@router.delete("/{group_id}")
+async def delete_group_and_update_users(
+    group_id: int, db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+    
+    if current_user.role != "admin":
+        raise HTTPException(status_code=401, detail="Access denied")
+    # Check if the group exists
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    # Update users related to the deleted group
+    db.query(models.User).filter(models.User.group_id == group_id).update({"group_id": None}, synchronize_session=False)
+    
+    # Delete the group
+    db.query(models.Group).filter(models.Group.id == group_id).delete(synchronize_session=False)
+
+
+    db.commit()
+    
+    return {"message": f"Group {group_id} deleted, and related users updated"}
