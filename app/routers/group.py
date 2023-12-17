@@ -89,9 +89,12 @@ def update_group(
 
 
 
-@router.get('/{id}', response_model=schemas.GroupOut)
-def get_group(id: int, db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
-    group = db.query(models.Group).filter(models.Group.id == id).first()
+@router.get('/{group_id}', response_model=schemas.GroupOut)
+def get_group(group_id: int, db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+
+    if current_user.role != "admin" and (current_user.role == "leader" and current_user.group_id != group_id):
+        raise HTTPException(status_code=401, detail="Access denied")
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Group with id: {id} does not exist")
@@ -100,6 +103,8 @@ def get_group(id: int, db: Session = Depends(get_db), current_user: int =Depends
 
 @router.get('/', response_model=List[schemas.GroupOut])
 def get_group_all(db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=401, detail="Access denied")
     group = db.query(models.Group).all()
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
