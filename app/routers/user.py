@@ -6,7 +6,7 @@ from ..database import get_db
 from fastapi.encoders import jsonable_encoder
 from ..config import settings
 router = APIRouter(
-    prefix="/users",
+    prefix="/user",
     tags=['Users']
 )
 
@@ -154,7 +154,7 @@ def get_user_all(db: Session = Depends(get_db), current_user: int =Depends(oauth
     user = user.all()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=" no user for now")
+                            detail="No users for now")
 
     return user
 
