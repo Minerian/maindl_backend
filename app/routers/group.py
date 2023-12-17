@@ -5,7 +5,7 @@ import os
 from .. import models, schemas, utils, oauth2
 from ..database import get_db
 from ..config import settings
-
+from fastapi.encoders import jsonable_encoder
 html_storage_path = "stored_html"
 image_storage_path = "stored_images"
 
@@ -132,3 +132,33 @@ async def delete_group_and_update_users(
     db.commit()
     
     return {"message": f"Group {group_id} deleted, and related users updated"}
+
+
+
+@router.post('/groupping')
+def get_group_user(db: Session = Depends(get_db), current_user: int = Depends(oauth2.get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=401, detail="Access denied")
+        
+    result = {}
+
+    # Fetch all groups, including those without users
+    all_groups = db.query(models.Group).order_by(models.Group.id).all()
+
+    # Organize the result for all groups
+    for group in all_groups:
+        result[group.group_name] = []
+        
+    # Fetch groups with users using SQLAlchemy
+    groups_with_users = db.query(models.Group).outerjoin(models.User, models.Group.id == models.User.group_id).order_by(models.Group.id).all()
+    
+    # Organize the result for groups with users
+    for group in groups_with_users:
+        result[group.group_name] = [{"user_id": user.id, "username": user.username, "role": user.role} for user in group.users]
+    # Fetch users without a group and add them to the result
+    users_without_group = db.query(models.User).filter(models.User.group_id.is_(None)).all()
+    result["without_group"] = [{"user_id": user.id, "username": user.username, "role": user.role} for user in users_without_group]
+
+    
+
+    return result
