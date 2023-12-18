@@ -4,6 +4,7 @@ from fastapi import APIRouter,Depends,HTTPException, Response,status, File, Form
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func
 from .. database import get_db
 from .. import models,schemas ,oauth2
 import os
@@ -22,30 +23,48 @@ router=APIRouter(
 )
 
 @router.get('/')
-def get_lists( db:Session=Depends(get_db),current_user: int =Depends(oauth2.get_current_user)):
-    # Construct the full file path
-    # file_path = os.path.join(html_storage_path, file_name)
-    # posts = db.query(models.Post).filter(models.Post.id == id).all()
-    posts = db.query(models.Post).all()
+def get_lists(db: Session = Depends(get_db)):
+    # Assuming Post has a 'category' attribute
+    posts = (
+        db.query(models.Post.category, 
+                 func.array_agg(models.Post.id).label('post_ids'),
+                 func.array_agg(models.Post.title).label('titles'),
+                 func.array_agg(models.Post.cover_photo_path).label('cover_photo_path')
+                 # Add other columns as needed
+        )
+        .group_by(models.Post.category)
+        .all()
+    )
+
     if not posts:
         raise HTTPException(status_code=404, detail="No posts found")
-    list_of_posts = []
-    for post in posts:
-        # Check if the file exists
-        # if not os.path.isfile(post.html_path):
-        #     raise HTTPException(status_code=404, detail="HTML file not found.")
-        
-        # Read the HTML content from the file
-        with open(post.html_path, "r", encoding="utf-8") as html_file:
-            html_content = html_file.read()
 
-        # Return the HTML content as a response
-        post_data = {
-            "html":HTMLResponse(content=html_content),
-            "post_data":post
-            }
-        list_of_posts.append(post_data)
-    return list_of_posts
+    formatted_response = {}
+    for post_category, post_ids, post_titles, cover_photo_paths in posts:
+        category_posts = []
+        for post_id, post_title, cover_photo_path in zip(post_ids, post_titles,cover_photo_paths):
+            category_posts.append({
+                "id": post_id,
+                "title": post_title,
+                "cover_photo_path": cover_photo_path
+                # Add other attributes as needed
+            })
+        formatted_response[post_category] = category_posts
+
+    return formatted_response
+
+#placeholder for get all by admin/filtering
+# @router.get('/')
+# def get_lists( db:Session=Depends(get_db),current_user: int =Depends(oauth2.get_current_user)):
+#     # Construct the full file path
+#     # file_path = os.path.join(html_storage_path, file_name)
+#     # posts = db.query(models.Post).filter(models.Post.id == id).all()
+#     posts = db.query(models.Post).all()
+#     if not posts:
+#         raise HTTPException(status_code=404, detail="No posts found")
+
+
+#     return posts
     
 
 #image_files: if there is no any updates, please provide None as a value
