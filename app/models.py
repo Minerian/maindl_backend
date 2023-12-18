@@ -21,12 +21,12 @@ class Post(Base):
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
     user_id = Column(Integer, ForeignKey(
-        "users.id", ondelete="CASCADE"), nullable=False)
+        "users.id"), nullable=False) #, ondelete="CASCADE"
     category = Column(String, nullable=True)
     group_id = Column(Integer, nullable = True)
-    owner = relationship("User")
+    
     status = Column(String, nullable = False, default = "draft")
-
+    user = relationship("User", back_populates="posts")
 
 class User(Base):
     __tablename__ = "users"
@@ -37,10 +37,9 @@ class User(Base):
     role = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
-    group_id = Column(Integer,ForeignKey(
-        "groups.id", ondelete="CASCADE"), nullable=True)
-    owner = relationship("Group")
-    
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True) #, ondelete="CASCADE"
+    group = relationship("Group", back_populates="users")
+    posts = relationship("Post", back_populates="user")
 class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key = True, nullable = False)
@@ -48,3 +47,4 @@ class Group(Base):
     group_photo_path = Column(String, nullable = True)
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
+    users = relationship("User", back_populates="group")

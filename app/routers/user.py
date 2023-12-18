@@ -6,7 +6,7 @@ from ..database import get_db
 from fastapi.encoders import jsonable_encoder
 from ..config import settings
 router = APIRouter(
-    prefix="/users",
+    prefix="/user",
     tags=['Users']
 )
 
@@ -154,28 +154,11 @@ def get_user_all(db: Session = Depends(get_db), current_user: int =Depends(oauth
     user = user.all()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=" no user for now")
+                            detail="No users for now")
 
     return user
 
 
-@router.get('/group')
-def get_group_users_all(db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
-    
-    result = {}
-
-    # Fetch groups with users using SQLAlchemy
-    groups_with_users = db.query(models.Group).outerjoin(models.User).order_by(models.Group.id).all()
-
-    # # Organize the result
-    # for group in groups_with_users:
-    #     result[group.name] = [{"user_id": user.id, "username": user.username} for user in group.users]
-
-    # # Fetch users without a group
-    # users_without_group = db.query(models.User).filter(models.User.group_id.is_(None)).all()
-    # result["without_group"] = [{"user_id": user.id, "username": user.username} for user in users_without_group]
-
-    # return result
 
 @router.post("/api_key", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
 def create_user_api_key(user: schemas.UserCreate, db: Session = Depends(get_db), api_key: str = Header(None)):
