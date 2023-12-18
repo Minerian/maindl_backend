@@ -1,12 +1,13 @@
 from logging import raiseExceptions
 from typing import List
 from fastapi import APIRouter,Depends,HTTPException, Response,status, File, Form, UploadFile
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from sqlalchemy.orm.session import Session
+from sqlalchemy.orm import joinedload
 from .. database import get_db
 from .. import models,schemas ,oauth2
 import os
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 from ..config import settings
 from fastapi.encoders import jsonable_encoder
 from typing import Optional, Union
@@ -46,26 +47,9 @@ def get_lists( db:Session=Depends(get_db),current_user: int =Depends(oauth2.get_
         list_of_posts.append(post_data)
     return list_of_posts
     
-@router.post("/")
-def post_list(post:schemas.PostCreate,db:Session=Depends(get_db),current_user: int = Depends(oauth2.get_current_user)):
-    print(current_user.id, current_user.role)
-    # if current_user.role == "admin":
-    #     approved_by_leader = True
-    #     approved_by_admin = True
-    # if current_user.role == "leader":
-    #     approved_by_leader = True
-    #     approved_by_admin = False
-    # if current_user.role == "publisher":
-    #     approved_by_leader = False
-    #     approved_by_admin = False
-    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, ** post.dict())
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    return new_post
 
 #image_files: if there is no any updates, please provide None as a value
-@router.post("/draft_html/")
+@router.post("/draft_html")
 def draft_html(
     title: str = Form(...),
     category: str = Form(None),
@@ -143,7 +127,7 @@ def update_html(
     if current_user.role == "leader":
         post.filter(models.Post.group_id == current_user.group_id)
     if current_user.role == "publisher":
-        post.filter(models.Post.user_id == current_user.id,models.Post.group_id == current_user.group_id)
+        post.filter(models.Post.user_id == current_user.id)
     post = post.first()
 
     if not post:
@@ -189,8 +173,7 @@ def update_html(
         with open(cover_image_path, "wb") as img_file:
             img_file.write(cover_photo.file.read())
         post.cover_photo_path = settings.backend_url + cover_image_path
-    else:
-        post.cover_photo_path = None
+
 
     # Commit the changes to the database
     db.commit()
@@ -202,14 +185,21 @@ def update_html(
 
 
 """
-@router.get("/html/{id}")
-async def get_html(id: int,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
-    # Construct the full file path
-    # file_path = os.path.join(html_storage_path, file_name)
-    post = db.query(models.Post).filter(models.Post.id == id).first()
-    if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND ,
-        detail=f"post with id {id} not found")
+
+#USE THIS ACCESS POINT FOR NOT AUTHENTICATED USERS
+@router.get("/html/{post_id}")
+async def get_html(post_id: int,db:Session=Depends(get_db)): #, current_user: int =Depends(oauth2.get_current_user)
+
+    # post = db.query(models.Post).filter(models.Post.id == post_id)
+    # if current_user.role == "leader":
+    #     post.filter(models.Post.group_id == current_user.group_id)
+    # if current_user.role == "publisher":
+    #     post.filter(models.Post.user_id == current_user.id)
+    # post = post.first()
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found, or access denied")
     # Check if the file exists
     if not os.path.isfile(post.html_path):
         raise HTTPException(status_code=404, detail="HTML file not found.")
@@ -219,12 +209,29 @@ async def get_html(id: int,db:Session=Depends(get_db), current_user: int =Depend
         html_content = html_file.read()
 
     # Return the HTML content as a response
-    return {
-        "html":HTMLResponse(content=html_content),
-        "post_data":post
-        }
+    # return {
+    #     "html":HTMLResponse(content=html_content),
+    #     "post_data":post
+    #     }
+    return HTMLResponse(content=html_content)
 
 
+#USE THIS ACCESS POINT FOR AUTHENTICATED USERS
+@router.get("/post/{post_id}")
+async def get_html(post_id: int,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+
+    post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.id == post_id).outerjoin(models.User, models.Post.user_id == models.User.id)
+    if current_user.role == "leader":
+        post.filter(models.Post.group_id == current_user.group_id)
+    if current_user.role == "publisher":
+        post.filter(models.Post.user_id == current_user.id)
+    post = post.first()
+    print(jsonable_encoder(post))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found, or access denied")
+
+    return jsonable_encoder(post)
+    
 @router.get("/images/{image_name}")
 async def get_image(image_name: str):
     # Construct the full file path
@@ -237,23 +244,6 @@ async def get_image(image_name: str):
     # Return the image file as a response
     return FileResponse(image_path, media_type="image/jpeg")
 
-@router.get("/{id}")
-def get_post_by_id(id:int ,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
-    post = db.query(models.Post).filter(models.Post.id == id).first()
-    if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND ,
-        detail=f"post with id {id} not found")
-    return post
-
-@router.put("/{id}",status_code=status.HTTP_200_OK)
-def update_list(id:int,updated_list:schemas.PostCreate ,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
-    post_query=db.query(models.Post).filter(models.Post.id==id)
-    post=post_query.first()
-    if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND ,detail=f"post with id {id} not found")
-    post_query.update(updated_list.dict(),synchronize_session=False)
-    db.commit()
-    return post_query.first()
 
 @router.delete("/{id}" ,status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(id:int ,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
