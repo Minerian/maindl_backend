@@ -29,7 +29,10 @@ def get_lists(db: Session = Depends(get_db)):
         db.query(models.Post.category, 
                  func.array_agg(models.Post.id).label('post_ids'),
                  func.array_agg(models.Post.title).label('titles'),
-                 func.array_agg(models.Post.cover_photo_path).label('cover_photo_path')
+                 func.array_agg(models.Post.cover_photo_path).label('cover_photo_path'),
+                 func.array_agg(models.Post.author).label('author'),
+                 func.array_agg(models.Post.created_at).label('created_at'),
+                 func.array_agg(models.Post.category).label('category')
                  # Add other columns as needed
         )
         .group_by(models.Post.category)
@@ -40,13 +43,16 @@ def get_lists(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No posts found")
 
     formatted_response = {}
-    for post_category, post_ids, post_titles, cover_photo_paths in posts:
+    for post_category, post_ids, post_titles, cover_photo_paths, authors, created_ats,categories in posts:
         category_posts = []
-        for post_id, post_title, cover_photo_path in zip(post_ids, post_titles,cover_photo_paths):
+        for post_id, post_title, cover_photo_path, author, created_at,category in zip(post_ids, post_titles,cover_photo_paths, authors, created_ats,categories):
             category_posts.append({
                 "id": post_id,
                 "title": post_title,
-                "cover_photo_path": cover_photo_path
+                "cover_photo_path": cover_photo_path,
+                "author": author,
+                "created_at": created_at,
+                "category": category,
                 # Add other attributes as needed
             })
         formatted_response[post_category] = category_posts
@@ -71,6 +77,7 @@ def get_lists(db: Session = Depends(get_db)):
 @router.post("/draft_html")
 def draft_html(
     title: str = Form(...),
+    slug: str = Form(...),
     category: str = Form(None),
     html_content: str = Form(...),
     image_files: List[Union[UploadFile, None]] = File(None),
@@ -118,7 +125,7 @@ def draft_html(
         cover_image_path = []
     print(current_user.id, current_user.role)
 
-    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, title=title, category=category, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
+    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
@@ -133,6 +140,7 @@ def draft_html(
 def update_html(
     post_id: int = Form(...),
     title: str = Form(None),
+    slug: str = Form(None),
     category: str = Form(None),
     html_content: str = Form(None),
     image_files: List[Union[UploadFile, None]] = File(None),
@@ -155,6 +163,8 @@ def update_html(
     # Update the existing post with the new data
     if title:
         post.title = title
+    if slug:
+        post.slug = slug
     if category:
         post.category = category
     
@@ -206,8 +216,8 @@ def update_html(
 """
 
 #USE THIS ACCESS POINT FOR NOT AUTHENTICATED USERS
-@router.get("/html/{post_id}")
-async def get_html(post_id: int,db:Session=Depends(get_db)): #, current_user: int =Depends(oauth2.get_current_user)
+@router.get("/html/{slug}")
+async def get_html(slug: str,db:Session=Depends(get_db)): #, current_user: int =Depends(oauth2.get_current_user)
 
     # post = db.query(models.Post).filter(models.Post.id == post_id)
     # if current_user.role == "leader":
@@ -215,7 +225,7 @@ async def get_html(post_id: int,db:Session=Depends(get_db)): #, current_user: in
     # if current_user.role == "publisher":
     #     post.filter(models.Post.user_id == current_user.id)
     # post = post.first()
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    post = db.query(models.Post).filter(models.Post.slug == slug).first()
 
     if not post:
         raise HTTPException(status_code=404, detail="Post not found, or access denied")
@@ -236,10 +246,10 @@ async def get_html(post_id: int,db:Session=Depends(get_db)): #, current_user: in
 
 
 #USE THIS ACCESS POINT FOR AUTHENTICATED USERS
-@router.get("/post/{post_id}")
-async def get_html(post_id: int,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+@router.get("/post/{slug}")
+async def get_html(slug: str,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
 
-    post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.id == post_id).outerjoin(models.User, models.Post.user_id == models.User.id)
+    post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug).outerjoin(models.User, models.Post.user_id == models.User.id)
     if current_user.role == "leader":
         post.filter(models.Post.group_id == current_user.group_id)
     if current_user.role == "publisher":

@@ -15,6 +15,7 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, nullable=False)
     title = Column(String, nullable=False)
+    slug = Column(String, nullable=False)
     html_path = Column(String, nullable = False)
     image_paths = Column(MutableList.as_mutable(ARRAY(String)))
     cover_photo_path = Column(String, nullable = True)
@@ -22,6 +23,7 @@ class Post(Base):
                         nullable=False, server_default=text('now()'))
     user_id = Column(Integer, ForeignKey(
         "users.id"), nullable=False) #, ondelete="CASCADE"
+    author = Column(String)
     category = Column(String, nullable=True)
     group_id = Column(Integer, nullable = True)
     
