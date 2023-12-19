@@ -1,6 +1,6 @@
 from logging import raiseExceptions
 from typing import List
-from fastapi import APIRouter,Depends,HTTPException, Response,status, File, Form, UploadFile
+from fastapi import APIRouter,Depends,HTTPException, Response,status, File, Form, UploadFile, Query
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm import joinedload
@@ -22,13 +22,14 @@ router=APIRouter(
 
 )
 
-@router.get('/')
+@router.get('/category_groupping')
 def get_lists(db: Session = Depends(get_db)):
     # Assuming Post has a 'category' attribute
     posts = (
         db.query(models.Post.category, 
                  func.array_agg(models.Post.id).label('post_ids'),
                  func.array_agg(models.Post.title).label('titles'),
+                 func.array_agg(models.Post.slug).label('slug'),
                  func.array_agg(models.Post.cover_photo_path).label('cover_photo_path'),
                  func.array_agg(models.Post.author).label('author'),
                  func.array_agg(models.Post.created_at).label('created_at'),
@@ -43,12 +44,13 @@ def get_lists(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No posts found")
 
     formatted_response = {}
-    for post_category, post_ids, post_titles, cover_photo_paths, authors, created_ats,categories in posts:
+    for post_category, post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories in posts:
         category_posts = []
-        for post_id, post_title, cover_photo_path, author, created_at,category in zip(post_ids, post_titles,cover_photo_paths, authors, created_ats,categories):
+        for post_id, post_title, slug, cover_photo_path, author, created_at,category in zip(post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories):
             category_posts.append({
                 "id": post_id,
                 "title": post_title,
+                "slug": slug,
                 "cover_photo_path": cover_photo_path,
                 "author": author,
                 "created_at": created_at,
@@ -58,6 +60,41 @@ def get_lists(db: Session = Depends(get_db)):
         formatted_response[post_category] = category_posts
 
     return formatted_response
+
+
+@router.get("/")
+async def get_posts(
+    category: str = Query(None),
+    user_id: int = Query(None),
+    group_id: int = Query(None),
+    status: str = Query(None),
+    db: Session = Depends(get_db),
+    current_user = Depends(oauth2.get_current_user_public)
+):  
+    print(current_user)
+    # Construct a filter dictionary based on provided parameters
+    filters = {}
+    if category is not None:
+        filters["category"] = category
+    if user_id is not None:
+        filters["user_id"] = user_id
+    if group_id is not None:
+        filters["group_id"] = group_id
+    
+    
+    if current_user:
+        if status is not None:
+            filters["status"] = status
+        if current_user.role == "publisher":
+            filters["user_id"] = current_user.id
+        if current_user.role == "leader":
+            filters["group_id"] = current_user.group_id
+    else:
+        filters["status"] = "published"
+              
+    posts = db.query(models.Post).filter_by(**filters).all()
+
+    return jsonable_encoder(posts)
 
 #placeholder for get all by admin/filtering
 # @router.get('/')
