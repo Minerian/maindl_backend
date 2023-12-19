@@ -86,8 +86,10 @@ async def get_posts(
         if status is not None:
             filters["status"] = status
         if current_user.role == "publisher":
+            #PLACEHOLDER:  STATUS = SUBMITED -->GIVE BACK ALL SUBMITED TO LEADER(publisher push, leader review!!!!)
             filters["user_id"] = current_user.id
         if current_user.role == "leader":
+            #PLACEHOLDER:  STATUS = SUBMITED -->GIVE BACK ALL SUBMITED TO ADMIN
             filters["group_id"] = current_user.group_id
     else:
         filters["status"] = "published"
@@ -320,3 +322,70 @@ def delete_list(id:int ,db:Session=Depends(get_db), current_user: int =Depends(o
     post_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
+
+@router.put("/publish")
+def update_status(
+    post_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: int = Depends(oauth2.get_current_user),
+):
+    # Fetch the existing post from the database
+    post = db.query(models.Post).filter(models.Post.id == post_id)
+    if current_user.role == "leader":
+        post.filter(models.Post.group_id == current_user.group_id)
+    if current_user.role == "publisher":
+        post.filter(models.Post.user_id == current_user.id)
+    post = post.first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found, or access denied")
+
+    
+    if current_user.role == "publisher":
+        if current_user.group_id == None:
+            post.status = "submited_to_admin"
+        else:
+            post.status = "submited_to_leader"
+    if current_user.role == "leader":
+        post.status = "submited_to_admin"
+    if current_user.role == "admin":
+        post.status = "published"
+
+    # Commit the changes to the database
+    db.commit()
+    db.refresh(post)
+    return jsonable_encoder(post)
+
+@router.put("/refuse")
+def update_status(
+    post_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: int = Depends(oauth2.get_current_user),
+):
+    # Fetch the existing post from the database
+    post = db.query(models.Post).filter(models.Post.id == post_id)
+    if current_user.role == "leader":
+        post.filter(models.Post.group_id == current_user.group_id)
+    if current_user.role == "publisher":
+        post.filter(models.Post.user_id == current_user.id)
+    post = post.first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found, or access denied")
+
+    
+    if current_user.role == "publisher":
+        post.status = "refused"
+    if current_user.role == "leader":
+        post.status = "refused"
+    if current_user.role == "admin":
+        post.status = "refused"
+   
+
+    # Commit the changes to the database
+    db.commit()
+
+    return jsonable_encoder(post)
