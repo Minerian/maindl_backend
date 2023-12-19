@@ -3,11 +3,13 @@ from datetime import datetime, timedelta
 from . import schemas, database, models
 from fastapi import Depends, status, HTTPException, Header
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
+
 from sqlalchemy.orm import Session
 from .config import settings
 
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login',auto_error=False)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
-
 # SECRET_KEY
 # Algorithm
 # Expriation time
@@ -64,3 +66,25 @@ def admin_api_key( api_key: str = Header(None)):
                 detail="Invalid API key",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+
+oauth2_scheme_2 = OAuth2PasswordBearer(tokenUrl='login',auto_error=False)         
+def get_current_user_public(token: Optional[str] = Depends(oauth2_scheme_2), db: Session = Depends(database.get_db)):
+    if token:
+        print("Token provided:", token)
+        credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                            detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+        
+        try:
+            # Add more debugging output if needed
+            token = verify_access_token(token, credentials_exception)
+        except Exception as e:
+            print(f"Token verification failed: {e}")
+            raise credentials_exception
+
+        user = db.query(models.User).filter(models.User.id == token.id).first()
+
+        return user
+    else:
+        print("Token not provided")
+        return False
