@@ -66,6 +66,7 @@ def get_lists(db: Session = Depends(get_db)):
 async def get_posts(
     category: str = Query(None),
     user_id: int = Query(None),
+    author: str = Query(None),
     group_id: int = Query(None),
     status: str = Query(None),
     db: Session = Depends(get_db),
@@ -78,6 +79,8 @@ async def get_posts(
         filters["category"] = category
     if user_id is not None:
         filters["user_id"] = user_id
+    if author is not None:
+        filters["author"] = author
     if group_id is not None:
         filters["group_id"] = group_id
     
