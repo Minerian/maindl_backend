@@ -48,6 +48,7 @@ class UserOut(BaseModel):
     role: Roles
     created_at: datetime    
     group_id: Optional[int]
+    profile_image_path: Optional[str]
     class Config:
         orm_mode = True
 
