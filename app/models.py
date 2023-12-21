@@ -25,6 +25,7 @@ class Post(Base):
         "users.id"), nullable=False) #, ondelete="CASCADE"
     author = Column(String)
     category = Column(String, nullable=True)
+    description = Column(String)
     group_id = Column(Integer, nullable = True)
     
     status = Column(String, nullable = False, default = "draft")
@@ -39,6 +40,7 @@ class User(Base):
     role = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True),
                         nullable=False, server_default=text('now()'))
+    profile_image_path = Column(String)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True) #, ondelete="CASCADE"
     group = relationship("Group", back_populates="users")
     posts = relationship("Post", back_populates="user")

@@ -22,44 +22,44 @@ router=APIRouter(
 
 )
 
-@router.get('/category_groupping')
-def get_lists(db: Session = Depends(get_db)):
-    # Assuming Post has a 'category' attribute
-    posts = (
-        db.query(models.Post.category, 
-                 func.array_agg(models.Post.id).label('post_ids'),
-                 func.array_agg(models.Post.title).label('titles'),
-                 func.array_agg(models.Post.slug).label('slug'),
-                 func.array_agg(models.Post.cover_photo_path).label('cover_photo_path'),
-                 func.array_agg(models.Post.author).label('author'),
-                 func.array_agg(models.Post.created_at).label('created_at'),
-                 func.array_agg(models.Post.category).label('category')
-                 # Add other columns as needed
-        )
-        .group_by(models.Post.category)
-        .all()
-    )
+# @router.get('/category_groupping')
+# def get_lists(db: Session = Depends(get_db)):
+#     # Assuming Post has a 'category' attribute
+#     posts = (
+#         db.query(models.Post.category, 
+#                  func.array_agg(models.Post.id).label('post_ids'),
+#                  func.array_agg(models.Post.title).label('titles'),
+#                  func.array_agg(models.Post.slug).label('slug'),
+#                  func.array_agg(models.Post.cover_photo_path).label('cover_photo_path'),
+#                  func.array_agg(models.Post.author).label('author'),
+#                  func.array_agg(models.Post.created_at).label('created_at'),
+#                  func.array_agg(models.Post.category).label('category')
+#                  # Add other columns as needed
+#         )
+#         .group_by(models.Post.category)
+#         .all()
+#     )
 
-    if not posts:
-        raise HTTPException(status_code=404, detail="No posts found")
+#     if not posts:
+#         raise HTTPException(status_code=404, detail="No posts found")
 
-    formatted_response = {}
-    for post_category, post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories in posts:
-        category_posts = []
-        for post_id, post_title, slug, cover_photo_path, author, created_at,category in zip(post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories):
-            category_posts.append({
-                "id": post_id,
-                "title": post_title,
-                "slug": slug,
-                "cover_photo_path": cover_photo_path,
-                "author": author,
-                "created_at": created_at,
-                "category": category,
-                # Add other attributes as needed
-            })
-        formatted_response[post_category] = category_posts
+#     formatted_response = {}
+#     for post_category, post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories in posts:
+#         category_posts = []
+#         for post_id, post_title, slug, cover_photo_path, author, created_at,category in zip(post_ids, post_titles, slugs, cover_photo_paths, authors, created_ats,categories):
+#             category_posts.append({
+#                 "id": post_id,
+#                 "title": post_title,
+#                 "slug": slug,
+#                 "cover_photo_path": cover_photo_path,
+#                 "author": author,
+#                 "created_at": created_at,
+#                 "category": category,
+#                 # Add other attributes as needed
+#             })
+#         formatted_response[post_category] = category_posts
 
-    return formatted_response
+#     return formatted_response
 
 
 @router.get("/")
@@ -120,7 +120,8 @@ async def get_posts(
 def draft_html(
     title: str = Form(...),
     slug: str = Form(...),
-    category: str = Form(None),
+    category: schemas.Categories = Form(None),
+    description: str = Form(None),
     html_content: str = Form(...),
     image_files: List[Union[UploadFile, None]] = File(None),
     cover_photo: UploadFile = File(...),
@@ -128,7 +129,12 @@ def draft_html(
     current_user: int = Depends(oauth2.get_current_user),
 ):
     print(current_user.id, current_user.role)
-
+    post_check = db.query(models.Post).filter(models.Post.title == title).first()
+    if post_check:
+        raise HTTPException(status_code=404, detail="Post with this title already exists")
+    post_check = db.query(models.Post).filter(models.Post.slug == slug).first()
+    if post_check:
+        raise HTTPException(status_code=404, detail="Post with this slug already exists")
     # Ensure that the 'stored_html' folder exists
     html_storage_path = "stored_html"
     os.makedirs(html_storage_path, exist_ok=True)
@@ -167,7 +173,7 @@ def draft_html(
         cover_image_path = []
     print(current_user.id, current_user.role)
 
-    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
+    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, description=description, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
