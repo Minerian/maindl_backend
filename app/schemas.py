@@ -5,6 +5,12 @@ from enum import Enum
 from pydantic.types import conint
 
 
+
+class Categories(str, Enum):
+    medicine = "Medicine"
+    education = "Education"
+    humanitarian_aid = "Humanitarian aid"
+    
 class Roles(str, Enum):
     admin = "admin"
     leader = "leader"
