@@ -116,6 +116,20 @@ async def get_posts(
     
 
 #image_files: if there is no any updates, please provide None as a value
+@router.post("/upload_images")
+async def upload_images(image_file: UploadFile = File(...),current_user: int = Depends(oauth2.get_current_user)):
+    if image_file: 
+        html_storage_path = "stored_images"
+        os.makedirs(html_storage_path, exist_ok=True)
+        # Save the attached image to the images folder
+        # image_name = f"{len(os.listdir(image_storage_path))}_{image_file.filename}"
+        #image_name = f"{image_file.filename}"
+        image_path = os.path.join(image_storage_path, image_file.filename)
+        
+        with open(image_path, "wb") as img_file:
+            img_file.write(image_file.file.read())
+        return {"uploaded_paths": settings.backend_url+image_path}
+    
 @router.post("/draft_html")
 def draft_html(
     title: str = Form(...),
@@ -123,7 +137,6 @@ def draft_html(
     category: schemas.Categories = Form(None),
     description: str = Form(None),
     html_content: str = Form(...),
-    image_files: List[Union[UploadFile, None]] = File(None),
     cover_photo: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
@@ -145,21 +158,7 @@ def draft_html(
 
     with open(file_path, "w", encoding="utf-8") as html_file:
         html_file.write(html_content)
-    if image_files: 
-        list_of_paths = []
-        html_storage_path = "stored_images"
-        os.makedirs(html_storage_path, exist_ok=True)
-        for image_file in image_files:
-            # Save the attached image to the images folder
-            # image_name = f"{len(os.listdir(image_storage_path))}_{image_file.filename}"
-            #image_name = f"{image_file.filename}"
-            image_path = os.path.join(image_storage_path, image_file.filename)
-            
-            with open(image_path, "wb") as img_file:
-                img_file.write(image_file.file.read())
-            list_of_paths.append(settings.backend_url+image_path)
-    else:
-        list_of_paths = None
+
     if cover_photo: 
         os.makedirs(image_storage_path, exist_ok=True)
             # Save the attached image to the images folder
@@ -173,14 +172,77 @@ def draft_html(
         cover_image_path = []
     print(current_user.id, current_user.role)
 
-    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, description=description, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
+    new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, description=description, html_path=file_path, cover_photo_path=cover_image_path, status="draft")
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
     return new_post
         
-    # new_group = models.Group(group_name=group_name,group_photo_path=image_path )
-    return {"message": f"HTML content and image saved: {file_name}, {image_file.filename}"}
+# @router.post("/draft_html")
+# def draft_html(
+#     title: str = Form(...),
+#     slug: str = Form(...),
+#     category: schemas.Categories = Form(None),
+#     description: str = Form(None),
+#     html_content: str = Form(...),
+#     image_files: List[Union[UploadFile, None]] = File(None),
+#     cover_photo: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+#     current_user: int = Depends(oauth2.get_current_user),
+# ):
+#     print(current_user.id, current_user.role)
+#     post_check = db.query(models.Post).filter(models.Post.title == title).first()
+#     if post_check:
+#         raise HTTPException(status_code=404, detail="Post with this title already exists")
+#     post_check = db.query(models.Post).filter(models.Post.slug == slug).first()
+#     if post_check:
+#         raise HTTPException(status_code=404, detail="Post with this slug already exists")
+#     # Ensure that the 'stored_html' folder exists
+#     html_storage_path = "stored_html"
+#     os.makedirs(html_storage_path, exist_ok=True)
+
+#     # Save the HTML content to the storage folder
+#     file_name = f"{len(os.listdir(html_storage_path)) + 1}.html"
+#     file_path = os.path.join(html_storage_path, file_name)
+
+#     with open(file_path, "w", encoding="utf-8") as html_file:
+#         html_file.write(html_content)
+#     if image_files: 
+#         list_of_paths = []
+#         html_storage_path = "stored_images"
+#         os.makedirs(html_storage_path, exist_ok=True)
+#         for image_file in image_files:
+#             # Save the attached image to the images folder
+#             # image_name = f"{len(os.listdir(image_storage_path))}_{image_file.filename}"
+#             #image_name = f"{image_file.filename}"
+#             image_path = os.path.join(image_storage_path, image_file.filename)
+            
+#             with open(image_path, "wb") as img_file:
+#                 img_file.write(image_file.file.read())
+#             list_of_paths.append(settings.backend_url+image_path)
+#     else:
+#         list_of_paths = None
+#     if cover_photo: 
+#         os.makedirs(image_storage_path, exist_ok=True)
+#             # Save the attached image to the images folder
+#         image_name = f"cover_{len(os.listdir(image_storage_path))}_{cover_photo.filename}"
+#         cover_image_path = os.path.join(image_storage_path, image_name)
+        
+#         with open(cover_image_path, "wb") as img_file:
+#             img_file.write(cover_photo.file.read())
+#         cover_image_path = settings.backend_url+cover_image_path
+#     else:
+#         cover_image_path = []
+#     print(current_user.id, current_user.role)
+
+#     new_post=models.Post(user_id=current_user.id,group_id=current_user.group_id, author=current_user.username,slug=slug, title=title, category=category, description=description, html_path=file_path, image_paths=list_of_paths, cover_photo_path=cover_image_path, status="draft")
+#     db.add(new_post)
+#     db.commit()
+#     db.refresh(new_post)
+#     return new_post
+        
+#     # new_group = models.Group(group_name=group_name,group_photo_path=image_path )
+#     return {"message": f"HTML content and image saved: {file_name}, {image_file.filename}"}
 
 #image_files: if there is no any updates, please provide None as a value
 #if you want to update the old HTML with additional image, you need to reference it on the right way 'https://url to backend/stored_images/name of image and upload it in 'image_files'. Other references from HTML should not be touched except you are changint it's path with new image that you are uploading
@@ -299,17 +361,23 @@ async def get_html(slug: str,db:Session=Depends(get_db)): #, current_user: int =
 
 #USE THIS ACCESS POINT FOR AUTHENTICATED USERS
 @router.get("/post/{slug}")
-async def get_html(slug: str,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+async def get_html(slug: str,db:Session=Depends(get_db), current_user = Depends(oauth2.get_current_user_public)):
+    if current_user:
+        post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug).outerjoin(models.User, models.Post.user_id == models.User.id).with_entities(models.Post.author,models.Post.category,models.Post.created_at,models.Post.description,models.Post.title,models.Post.status,models.Post.cover_photo_path, models.User.profile_image_path,models.User.role,models.User.id, models.User.email,models.User.group_id,models.User.group)
+        if current_user.role == "leader":
+            post.filter(models.Post.group_id == current_user.group_id)
+        if current_user.role == "publisher":
+            post.filter(models.Post.user_id == current_user.id)
+        post = post.first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found, or access denied")
+    #this is for publish access:
+    else:
+        post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug).outerjoin(models.User, models.Post.user_id == models.User.id).with_entities(models.Post.author,models.Post.category,models.Post.created_at,models.Post.description,models.Post.title, models.Post.cover_photo_path, models.User.profile_image_path).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found, or access denied")
+        
 
-    post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug).outerjoin(models.User, models.Post.user_id == models.User.id)
-    if current_user.role == "leader":
-        post.filter(models.Post.group_id == current_user.group_id)
-    if current_user.role == "publisher":
-        post.filter(models.Post.user_id == current_user.id)
-    post = post.first()
-    print(jsonable_encoder(post))
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found, or access denied")
 
     return jsonable_encoder(post)
     
