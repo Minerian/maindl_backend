@@ -189,7 +189,7 @@ def update_html(
     post_id: int = Form(...),
     title: str = Form(None),
     slug: str = Form(None),
-    category: str = Form(None),
+    category: schemas.Categories = Form(None),
     html_content: str = Form(None),
     image_files: List[Union[UploadFile, None]] = File(None),
     cover_photo: UploadFile = File(None),
@@ -255,6 +255,10 @@ def update_html(
     # Commit the changes to the database
     db.commit()
 
+    
+    """VRATI OVDE REFRESH POST
+    i 
+    DUZINA ACCESS TOKENA"""
     return jsonable_encoder(post)
 
 """NAPRAVI BRISANJE SLIKAAAAA ILI HTML FAJLAAAAA
