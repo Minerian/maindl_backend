@@ -71,7 +71,6 @@ def admin_api_key( api_key: str = Header(None)):
 oauth2_scheme_2 = OAuth2PasswordBearer(tokenUrl='login',auto_error=False)         
 def get_current_user_public(token: Optional[str] = Depends(oauth2_scheme_2), db: Session = Depends(database.get_db)):
     if token:
-        print("Token provided:", token)
         credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                             detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
         
