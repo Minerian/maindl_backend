@@ -263,6 +263,7 @@ def update_html(
     title: str = Form(None),
     slug: str = Form(None),
     category: schemas.Categories = Form(None),
+    description: str = Form(None),
     html_content: str = Form(None),
     # image_files: List[Union[UploadFile, None]] = File(None),
     cover_photo: UploadFile = File(None),
@@ -289,7 +290,8 @@ def update_html(
         post.slug = slug
     if category:
         post.category = category
-    
+    if description:
+        post.description = description
     # Save the updated HTML content to the storage folder. Images can be edited only if the whole HTML content is provided
     if html_content:
         file_name = post.html_path
@@ -325,15 +327,15 @@ def update_html(
             img_file.write(cover_photo.file.read())
         post.cover_photo_path = settings.backend_url + cover_image_path
 
-
+    
     # Commit the changes to the database
     db.commit()
-
+    db.refresh(post)
     
     """VRATI OVDE REFRESH POST
     i 
     DUZINA ACCESS TOKENA"""
-    return jsonable_encoder(post)
+    return post
 
 """NAPRAVI BRISANJE SLIKAAAAA ILI HTML FAJLAAAAA
 
