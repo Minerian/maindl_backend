@@ -408,13 +408,13 @@ async def get_image(image_name: str):
     return FileResponse(image_path, media_type="image/jpeg")
 
 
-@router.delete("/{id}" ,status_code=status.HTTP_204_NO_CONTENT)
-def delete_list(id:int ,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
+@router.delete("/{slug}" ,status_code=status.HTTP_204_NO_CONTENT)
+def delete_list(slug:str ,db:Session=Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
     logger.info("USER: %s", current_user.username)
-    post_query=db.query(models.Post).filter(models.Post.id == id)
+    post_query=db.query(models.Post).filter(models.Post.slug == slug)
     post=post_query.first()
     if post is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND ,detail=f"post with id {id} not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND ,detail=f"post with slug {slug} not found")
     post_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -424,13 +424,13 @@ def delete_list(id:int ,db:Session=Depends(get_db), current_user: int =Depends(o
 
 @router.put("/publish")
 def update_status(
-    post_id: int = Form(...),
+    slug: str = Form(...),
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
 ):
     logger.info("USER: %s", current_user.username)
     # Fetch the existing post from the database
-    post = db.query(models.Post).filter(models.Post.id == post_id)
+    post = db.query(models.Post).filter(models.Post.slug == slug)
     if current_user.role == "leader":
         post.filter(models.Post.group_id == current_user.group_id)
     if current_user.role == "publisher":
@@ -458,13 +458,13 @@ def update_status(
 
 @router.put("/refuse")
 def update_status(
-    post_id: int = Form(...),
+    slug: str = Form(...),
     db: Session = Depends(get_db),
     current_user: int = Depends(oauth2.get_current_user),
 ):
     logger.info("USER: %s", current_user.username)
     # Fetch the existing post from the database
-    post = db.query(models.Post).filter(models.Post.id == post_id)
+    post = db.query(models.Post).filter(models.Post.slug == slug)
     if current_user.role == "leader":
         post.filter(models.Post.group_id == current_user.group_id)
     if current_user.role == "publisher":
