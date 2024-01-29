@@ -445,7 +445,22 @@ def update_status(
         if current_user.group_id == None:
             post.status = "submited_to_admin"
         else:
-            post.status = "submited_to_leader"
+            find_leader = db.query(models.User).filter(models.User.group_id == current_user.group_id).all()
+            print(find_leader)
+            if find_leader:
+                leader_found = False
+                for user in find_leader:
+                    print(user.role)
+                    if user.role == "leader":
+                        leader_found = True
+                        print("lider true")
+                        break
+                        print("nismo dosli do ovde!")
+                if leader_found:
+                    print(leader_found)
+                    post.status = "submited_to_leader"
+                else:
+                    post.status = "submited_to_admin"
     if current_user.role == "leader":
         post.status = "submited_to_admin"
     if current_user.role == "admin":
