@@ -102,9 +102,14 @@ async def get_posts(
     else:
         logger.info("USER: %s external")
         filters["status"] = "published"
-              
-    posts = db.query(models.Post).filter_by(**filters).all()
 
+    # posts = db.query(models.Post).filter_by(**filters).all()
+    posts = (
+    db.query(models.Post)
+    .filter_by(**filters)
+    .options(joinedload(models.Post.user).load_only("profile_image_path"))
+    .all()
+)
     return jsonable_encoder(posts)
 
 #placeholder for get all by admin/filtering
@@ -446,18 +451,13 @@ def update_status(
             post.status = "submited_to_admin"
         else:
             find_leader = db.query(models.User).filter(models.User.group_id == current_user.group_id).all()
-            print(find_leader)
             if find_leader:
                 leader_found = False
                 for user in find_leader:
-                    print(user.role)
                     if user.role == "leader":
                         leader_found = True
-                        print("lider true")
                         break
-                        print("nismo dosli do ovde!")
                 if leader_found:
-                    print(leader_found)
                     post.status = "submited_to_leader"
                 else:
                     post.status = "submited_to_admin"
