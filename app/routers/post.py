@@ -350,15 +350,21 @@ def update_html(
 
 #USE THIS ACCESS POINT FOR NOT AUTHENTICATED USERS
 @router.get("/html/{slug}")
-async def get_html(slug: str,db:Session=Depends(get_db)): #, current_user: int =Depends(oauth2.get_current_user)
-
-    # post = db.query(models.Post).filter(models.Post.id == post_id)
-    # if current_user.role == "leader":
-    #     post.filter(models.Post.group_id == current_user.group_id)
-    # if current_user.role == "publisher":
-    #     post.filter(models.Post.user_id == current_user.id)
-    # post = post.first()
-    post = db.query(models.Post).filter(models.Post.slug == slug).first()
+async def get_html(slug: str,db:Session=Depends(get_db),current_user = Depends(oauth2.get_current_user_public)):
+    if current_user:
+        post = db.query(models.Post).filter(models.Post.slug == slug)
+        logger.info("USER: %s",current_user.username)
+        if current_user.role == "publisher":
+            #PLACEHOLDER:  STATUS = SUBMITED -->GIVE BACK ALL SUBMITED TO LEADER(publisher push, leader review!!!!)
+            post.filter(models.Post.user_id==current_user.id)
+        if current_user.role == "leader":
+            #PLACEHOLDER:  STATUS = SUBMITED -->GIVE BACK ALL SUBMITED TO ADMIN
+            post.filter(models.Post.group_id==current_user.group_id)
+    else:
+        logger.info("USER: %s external")
+        post = db.query(models.Post).filter(models.Post.slug == slug, models.Post.status=="published")
+        
+    post = post.first()
 
     if not post:
         raise HTTPException(status_code=404, detail="Post not found, or access denied")
@@ -392,7 +398,7 @@ async def get_html(slug: str,db:Session=Depends(get_db), current_user = Depends(
             raise HTTPException(status_code=404, detail="Post not found, or access denied")
     #this is for publish access:
     else:
-        post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug).outerjoin(models.User, models.Post.user_id == models.User.id).with_entities(models.Post.author,models.Post.category,models.Post.created_at,models.Post.description,models.Post.title, models.Post.cover_photo_path, models.User.profile_image_path).first()
+        post = db.query(models.Post, models.User.username, models.User.role).filter(models.Post.slug == slug, models.Post.status == "published").outerjoin(models.User, models.Post.user_id == models.User.id).with_entities(models.Post.author,models.Post.category,models.Post.created_at,models.Post.description,models.Post.title, models.Post.cover_photo_path, models.User.profile_image_path).first()
         if not post:
             raise HTTPException(status_code=404, detail="Post not found, or access denied")
         
