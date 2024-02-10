@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     logger.info("LOGIN: %s",user_credentials.username)
     user = db.query(models.User).filter(
-        models.User.email == user_credentials.username).first()
+        models.User.email == user_credentials.username, models.User.deleted == False).first()
 
     if not user:
         logger.info("User not exist: %s",user_credentials.username)

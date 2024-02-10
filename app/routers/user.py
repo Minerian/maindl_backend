@@ -90,7 +90,7 @@ def update_user(
         raise HTTPException(status_code=401, detail="Access denied")
 
     # Fetch the existing user from the database
-    existing_user = db.query(models.User).filter(models.User.id == user_id).first()
+    existing_user = db.query(models.User).filter(models.User.id == user_id, models.User.deleted == False).first()
     print(jsonable_encoder(existing_user))
     if not existing_user:
         raise HTTPException(status_code=400,
@@ -151,9 +151,10 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: int =
     if not existing_user:
         raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
-    # Delete the user from the database
-    db.delete(existing_user)
+    # Soft delete the user from the database
+    existing_user.deleted = True
     db.commit()
+    db.refresh(existing_user)
 
     return existing_user
 
@@ -167,7 +168,7 @@ def get_user(id: int, db: Session = Depends(get_db), current_user: int = Depends
         raise HTTPException(status_code=401, detail=f"Permission denied")
 
     # Execute the query to get the user object
-    user = db.query(models.User).filter(models.User.id == id)
+    user = db.query(models.User).filter(models.User.id == id, models.User.deleted == False)
     
     if current_user.role == 'leader':
         user = user.filter(models.User.group_id == current_user.group_id)
@@ -186,7 +187,7 @@ def get_user(id: int, db: Session = Depends(get_db), current_user: int = Depends
 def get_user_all(db: Session = Depends(get_db), current_user: int =Depends(oauth2.get_current_user)):
     if current_user.role == 'publisher':
         raise HTTPException(status_code=401, detail=f"Permission denied")
-    user = db.query(models.User)
+    user = db.query(models.User).filter(models.User.deleted == False)
     if current_user.role == 'leader':
         user = user.filter(models.User.group_id == current_user.group_id)
     

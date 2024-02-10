@@ -46,13 +46,36 @@ def verify_access_token(token: str, credentials_exception):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                          detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
-    token = verify_access_token(token, credentials_exception)
+    try:
+        # Verify and decode the access token
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+        token_data = verify_access_token(token, credentials_exception)
 
-    user = db.query(models.User).filter(models.User.id == token.id).first()
+        # Retrieve user from the database based on decoded token
+        user = db.query(models.User).filter(models.User.id == token_data.id, models.User.deleted == False).first()
 
-    return user
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        return user
+
+    except HTTPException as e:
+        # Propagate HTTPExceptions without modification
+        raise e
+
+    except Exception as e:
+        # Handle other unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 
 
     
@@ -81,7 +104,7 @@ def get_current_user_public(token: Optional[str] = Depends(oauth2_scheme_2), db:
             print(f"Token verification failed: {e}")
             raise credentials_exception
 
-        user = db.query(models.User).filter(models.User.id == token.id).first()
+        user = db.query(models.User).filter(models.User.id == token.id, models.User.deleted == False).first()
 
         return user
     else:
