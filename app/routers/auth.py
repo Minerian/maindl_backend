@@ -8,7 +8,11 @@ from .. import database, schemas, models, utils, oauth2
 router = APIRouter(tags=['Authentication'])
 
 # Configure the root logger
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
 @router.post('/login', response_model=schemas.Token)
