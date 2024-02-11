@@ -154,9 +154,9 @@ def get_group_user(db: Session = Depends(get_db), current_user: int = Depends(oa
     
     # Organize the result for groups with users
     for group in groups_with_users:
-        result[group.group_name] = [{"user_id": user.id, "username": user.username, "role": user.role} for user in group.users]
+        result[group.group_name] = [{"user_id": user.id, "username": user.username, "role": user.role} for user in group.users if user.deleted == False]
     # Fetch users without a group and add them to the result
-    users_without_group = db.query(models.User).filter(models.User.group_id.is_(None)).all()
+    users_without_group = db.query(models.User).filter(models.User.group_id.is_(None), models.User.deleted == False).all()
     result["without_group"] = [{"user_id": user.id, "username": user.username, "role": user.role} for user in users_without_group]
 
     
