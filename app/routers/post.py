@@ -506,13 +506,16 @@ def delete_list(
     current_user: int = Depends(oauth2.get_current_user),
 ):
     logger.info("USER: %s", current_user.username)
+    # Fetch the existing post from the database
     post_query = db.query(models.Post).filter(models.Post.slug == slug)
+    if current_user.role == "leader":
+        post_query.filter(models.Post.group_id == current_user.group_id)
+    if current_user.role == "publisher":
+        post_query.filter(models.Post.user_id == current_user.id)
     post = post_query.first()
-    if post is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"post with slug {slug} not found",
-        )
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found, or access denied")
     post_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
